@@ -35,17 +35,19 @@ day_df['mnth'] = pd.Categorical(day_df['mnth'], categories=months, ordered=True)
 # Membuat komponen filter di sidebar
 with st.sidebar:
     st.title("🚲 Bike Sharing Analytics")
-    st.image("https://github.com/dicodingacademy/assets/raw/main/logo.png")
+    st.image("https://cdn-icons-png.flaticon.com/512/3198/3198336.png", width=150)
     
     st.header("Filter Data")
     
-    # Filter Tahun
-    year_options = {0: "2011", 1: "2012"}
-    selected_year = st.selectbox(
-        label="Pilih Tahun",
-        options=list(year_options.keys()),
-        format_func=lambda x: year_options[x],
-        index=1 # default to 2012
+    # Filter Tanggal
+    min_date = pd.to_datetime(day_df['dteday']).min()
+    max_date = pd.to_datetime(day_df['dteday']).max()
+    
+    start_date, end_date = st.date_input(
+        label='Rentang Waktu',
+        min_value=min_date,
+        max_value=max_date,
+        value=[min_date, max_date]
     )
 
     # Filter Musim (Season)
@@ -57,7 +59,9 @@ with st.sidebar:
     )
 
 # Memfilter data utama berdasarkan input sidebar
-main_df = day_df[day_df['yr'] == selected_year]
+day_df['dteday'] = pd.to_datetime(day_df['dteday'])
+main_df = day_df[(day_df['dteday'] >= pd.to_datetime(start_date)) & 
+                 (day_df['dteday'] <= pd.to_datetime(end_date))]
 if selected_season != "Semua Musim":
     main_df = main_df[main_df['season'] == selected_season]
 
@@ -82,7 +86,7 @@ with col2:
 st.markdown("---")
 
 # Row 2: Visualisasi Pertanyaan Bisnis 1
-st.subheader(f"Tren Penyewaan Sepeda Bulanan ({year_options[selected_year]})")
+st.subheader("Tren Penyewaan Sepeda Bulanan")
 fig, ax = plt.subplots(figsize=(16, 8))
 sns.lineplot(
     x="mnth", 
@@ -106,7 +110,7 @@ st.markdown("---")
 st.subheader("Pengaruh Kondisi Cuaca terhadap Rata-rata Penyewaan Harian")
 fig, ax = plt.subplots(figsize=(10, 6))
 
-colors = sns.color_palette("Set2")
+colors = ["#D3D3D3" if x < weather_rentals_df['cnt'].max() else "#90CAF9" for x in weather_rentals_df['cnt']]
 sns.barplot(
     x="weathersit", 
     y="cnt",
@@ -142,11 +146,12 @@ main_df['temp_category'] = main_df['temp_celcius'].apply(categorize_temp)
 temp_clustering = main_df.groupby('temp_category', observed=False)['cnt'].mean().reset_index()
 
 fig, ax = plt.subplots(figsize=(10, 6))
+colors_temp = ["#D3D3D3", "#D3D3D3", "#90CAF9", "#D3D3D3"] # Hangat is the highest usually based on data
 sns.barplot(
     x='temp_category', 
     y='cnt', 
     data=temp_clustering, 
-    palette='magma', 
+    palette=colors_temp, 
     order=['Dingin (<15°C)', 'Sedang (15°C - 24°C)', 'Hangat (25°C - 29°C)', 'Panas (>=30°C)'],
     ax=ax
 )
@@ -159,10 +164,10 @@ st.pyplot(fig)
 with st.expander("Lihat Insight Analisis Lanjutan"):
     st.write(
         """
-        Melalui teknik pengelompokan **(Binning / Manual Grouping)**, kita mengkategorikan suhu udara (yang sebelumnya telah dinormalisasi) kembali ke dalam satuan Celcius dan membaginya menjadi 4 kategori: Dingin, Sedang, Hangat, dan Panas. 
+        Dari grafik bar di atas, terlihat bahwa pengguna sepeda lebih banyak menyewa pada saat cuaca Hangat (25°C - 29°C) dan Panas (>=30°C). 
         
-        Dari visualisasi di atas, kita dapat menyimpulkan bahwa minat penyewaan sepeda memuncak saat cuaca terasa Hangat (25°C - 29°C) hingga Panas (>=30°C). Suhu di bawah 15°C (Dingin) secara signifikan menurunkan aktivitas penyewaan.
+        Saat suhu Dingin di bawah 15°C, jumlah penyewaan menurun secara drastis. Analisis ini menggunakan teknik binning manual untuk mengelompokkan suhu yang telah dikembalikan ke satuan celcius agar lebih mudah diinterpretasikan.
         """
     )
 
-st.caption("Copyright © Wildan Taufiqurrahman 2026")
+st.caption("Copyright © Wildan Taufiqurrahman 2026 | Dicoding ID: wildantaw")
